@@ -4,83 +4,99 @@ import 'package:senhas/DATA/cadastro_DAO.dart';
 
 class CadastroProvider with ChangeNotifier {
   final CadastroDao _cadastroDao = CadastroDao();
+
+  // Lista interna de serviços
   List<ServiceModel> _servicos = [];
+
+  // Lista interna de grupos com seus detalhes (nome, privacidade etc.)
   List<Map<String, dynamic>> _gruposDetalhes = [];
 
-  // Getter público para acessar os serviços
+  // Getter para serviços: outras telas usam `cadastroProvider.servicos`
   List<ServiceModel> get servicos => _servicos;
 
-  // Obter serviços públicos, filtrando pelos grupos públicos
-  List<ServiceModel> get publicServices {
-    final gruposPublicos = _gruposDetalhes
-        .where((grupo) => grupo['group_privacy'] == 0)
-        .map((grupo) => grupo['nome'] as String)
-        .toSet();
+  // Se quiser acessar os grupos no CadastroProvider
+  List<Map<String, dynamic>> get gruposDetalhes => _gruposDetalhes;
 
-    return _servicos.where((service) {
-      return gruposPublicos.contains(service.grupo ?? 'Sem Categoria');
-    }).toList();
-  }
-
-  // Obter serviços privados, filtrando pelos grupos privados
-  List<ServiceModel> get privateServices {
-    final gruposPrivados = _gruposDetalhes
-        .where((grupo) => grupo['group_privacy'] == 1)
-        .map((grupo) => grupo['nome'] as String)
-        .toSet();
-
-    return _servicos.where((service) {
-      return gruposPrivados.contains(service.grupo);
-    }).toList();
-  }
-
+  // Construtor que carrega os dados ao inicializar o Provider
   CadastroProvider() {
-    _loadServices(); // Carrega os serviços ao inicializar
+    _loadServices();
   }
 
-  // Carrega os serviços do banco e os detalhes dos grupos
+  /// Carrega todos os serviços e grupos do banco de dados
   Future<void> _loadServices() async {
     try {
+      // Carrega serviços
       _servicos = await _cadastroDao.findAllServices();
+
+      // Carrega grupos
       _gruposDetalhes = await _cadastroDao.findAllGroups();
-      notifyListeners(); // Notifica a interface sobre mudanças
+
+      // Notifica os consumidores (telas) para rebuild
+      notifyListeners();
     } catch (e) {
-      print('Erro ao carregar serviços ou grupos: $e');
+      debugPrint('Erro ao carregar serviços ou grupos: $e');
     }
   }
 
-  // Adiciona ou atualiza um serviço
+  /// Adiciona ou atualiza um serviço no banco de dados
   Future<void> addOrUpdateService(ServiceModel service) async {
     try {
       if (service.id == null) {
-        // Serviço novo
+        // ID nulo => serviço novo
         await _cadastroDao.insertService(service);
       } else {
         // Atualiza serviço existente
         await _cadastroDao.updateService(service);
       }
-      await _loadServices(); // Recarrega os serviços após a operação
+
+      // Recarrega a lista de serviços e grupos para refletir mudanças
+      await _loadServices();
     } catch (e) {
-      print('Erro ao adicionar ou atualizar serviço: $e');
+      debugPrint('Erro ao adicionar ou atualizar serviço: $e');
     }
   }
 
-  // Exclui um serviço
+  /// Exclui um serviço do banco de dados
   Future<void> deleteService(int id) async {
     try {
       await _cadastroDao.deleteService(id);
-      await _loadServices(); // Recarrega os serviços após a exclusão
+
+      // Atualiza a lista de serviços e grupos
+      await _loadServices();
     } catch (e) {
-      print('Erro ao excluir serviço: $e');
+      debugPrint('Erro ao excluir serviço: $e');
     }
   }
 
-  // Atualiza os detalhes dos grupos (se necessário explicitamente)
+  /// Atualiza os grupos caso seja necessário explicitamente
+  /// Útil se o GroupProvider ou outra lógica atualizar a tabela de grupos
+  /// e quisermos garantir que o CadastroProvider também esteja em sincronia
   Future<void> refreshGroups(List<Map<String, dynamic>> grupos) async {
     _gruposDetalhes = grupos;
-    // Após atualizar os grupos, recarrega também os serviços
-    await _loadServices();
-    // O _loadServices() já chama notifyListeners(), então não é necessário chamar de novo
+    notifyListeners(); // Notifica apenas para atualizar tela se necessário
   }
 
+  /// Move todos os serviços de um grupo para o grupo "Sem Categoria"
+  /// Chamado quando um grupo é excluído (via GroupProvider), por exemplo.
+  Future<void> moveServicesToDefaultGroup(String groupName) async {
+    try {
+      const defaultGroup = 'Sem Categoria';
+
+      // Garante que "Sem Categoria" exista nos detalhes de grupos
+      if (!_gruposDetalhes.any((g) => g['nome'] == defaultGroup)) {
+        // Insere "Sem Categoria" no banco, caso não exista
+        await _cadastroDao.insertGroup(defaultGroup, false);
+        // Atualiza a lista local de grupos
+        _gruposDetalhes.add({'nome': defaultGroup, 'group_privacy': 0});
+      }
+
+      // Atualiza todos os serviços do grupo para "Sem Categoria"
+      await _cadastroDao.updateServiceGroup(groupName, defaultGroup);
+
+      // Recarrega serviços e grupos para refletir a mudança
+      await _loadServices();
+    } catch (e) {
+      debugPrint('Erro ao mover serviços para o grupo padrão: $e');
+    }
+  }
 }

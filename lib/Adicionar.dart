@@ -6,6 +6,6 @@ class Adicionar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Icon(Icons.face,
-    size: 50,);
+      size: 50,);
   }
 }

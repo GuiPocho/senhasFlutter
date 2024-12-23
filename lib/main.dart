@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:senhas/DATA/Cadastro_Provider.dart';
-import 'package:senhas/DATA/Group_Provider.dart';
-import 'package:senhas/HOME.dart';
-import 'package:senhas/Inclusao.dart';
 import 'package:provider/provider.dart';
-import 'package:senhas/Tela_grupo.dart';
+import 'package:senhas/DATA/Cadastro_Provider.dart'; // Ajuste o caminho conforme seu projeto
+import 'package:senhas/DATA/Group_Provider.dart';
+         // Arquivo que criaremos/ajustaremos
+import 'package:senhas/HOME.dart';                    // Tela inicial do seu app
 
 void main() {
   runApp(
     MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => GroupProvider()),
-          ChangeNotifierProvider(create: (_) => CadastroProvider()),
+      providers: [
+        // 1. Cria primeiro o CadastroProvider
+        ChangeNotifierProvider(
+          create: (_) => CadastroProvider(),
+        ),
 
-        ],
-            child: SenhaApp()),
-      );
+        // 2. Cria o GroupProvider via ChangeNotifierProxyProvider
+        ChangeNotifierProxyProvider<CadastroProvider, GroupProvider>(
+          create: (_) => GroupProvider(null), // Inicialmente nulo
+          update: (context, cadastroProv, previous) =>
+              GroupProvider(cadastroProv),
+        ),
+      ],
+      child: const SenhaApp(),
+    ),
+  );
 }
 
 class SenhaApp extends StatelessWidget {
@@ -24,10 +32,7 @@ class SenhaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Home(),
-        );
-
+      home: const Home(),
+    );
   }
 }
-
-
