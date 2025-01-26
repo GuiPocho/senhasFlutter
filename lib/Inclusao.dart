@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:senhas/DATA/ServiceModel.dart';
 import 'package:provider/provider.dart';
 import 'package:senhas/Background.dart';
+import 'package:senhas/EncryptionHelper.dart';
 import 'package:senhas/Grupos.dart';
 import 'package:senhas/Header.dart';
 import 'package:senhas/Styles.dart';
@@ -23,15 +24,17 @@ class _InclusaoState extends State<Inclusao> {
   void saveData() {
     final service = serviceController.text.trim();
     final password = passwordController.text.trim();
+    final encryptedPassword = EncryptionHelper.encryptText(password);
+
 
     if (service.isNotEmpty && password.isNotEmpty) {
       final cadastroProvider =
       Provider.of<CadastroProvider>(context, listen: false);
       final newService = ServiceModel(
-        servico: service,
-        senha: password,
-        grupo: grupoSelecionado ?? 'Sem Categoria',
-        privacidade: true
+          servico: service,
+          senha: encryptedPassword,
+          grupo: grupoSelecionado ?? 'Sem Categoria',
+          privacidade: true
       );
 
       cadastroProvider.addOrUpdateService(newService);

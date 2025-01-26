@@ -8,6 +8,7 @@ import 'package:senhas/Header.dart';
 import 'package:senhas/Styles.dart';
 import 'package:senhas/Wave.dart';
 import 'package:senhas/Inclusao.dart';
+import 'package:senhas/DATA/Group_Provider.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -45,19 +46,24 @@ class _HomeState extends State<Home> {
                   ),
                 ),
                 Expanded(
-                  child: Consumer<CadastroProvider>(
-                    builder: (context, cadastroProvider, child) {
+                  child: Consumer2<CadastroProvider, GroupProvider>(
+                    builder: (context, cadastroProvider, groupProvider, child) {
                       final servicos = cadastroProvider.servicos;
 
-                      if (servicos.isEmpty) {
+                      // Filtra os grupos públicos
+                      final gruposPublicos = groupProvider.gruposPublicos;
+
+                      if (servicos.isEmpty || gruposPublicos.isEmpty) {
                         return const Center(
-                          child: Text('Nenhum serviço cadastrado'),
+                          child: Text('Nenhum serviço ou grupo cadastrado'),
                         );
                       }
 
-                      // Agrupar os serviços por grupo
-                      final Map<String, List<ServiceModel>> grupos =
-                      _agruparServicosPorGrupo(servicos);
+                      // Filtra os serviços que pertencem apenas aos grupos públicos
+                      final Map<String, List<ServiceModel>> grupos = _agruparServicosPorGrupo(
+                        servicos,
+                        gruposPublicos,
+                      );
 
                       return ListView(
                         children: grupos.entries.map((entry) {
@@ -151,17 +157,23 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // Agrupar os serviços por grupo
+  // Agrupar os serviços por grupo público
   Map<String, List<ServiceModel>> _agruparServicosPorGrupo(
-      List<ServiceModel> servicos) {
+      List<ServiceModel> servicos,
+      List<Map<String, dynamic>> gruposPublicos,
+      ) {
     final Map<String, List<ServiceModel>> grupos = {};
+    final List<String> nomesGruposPublicos =
+    gruposPublicos.map((grupo) => grupo['nome'] as String).toList();
 
     for (final service in servicos) {
       final String grupo = service.grupo ?? 'Sem Categoria';
-      if (!grupos.containsKey(grupo)) {
-        grupos[grupo] = [];
+      if (nomesGruposPublicos.contains(grupo)) {
+        if (!grupos.containsKey(grupo)) {
+          grupos[grupo] = [];
+        }
+        grupos[grupo]!.add(service);
       }
-      grupos[grupo]!.add(service);
     }
 
     return grupos;

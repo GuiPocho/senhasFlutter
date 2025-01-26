@@ -6,6 +6,8 @@ import 'package:senhas/GrupoBoxCard.dart';
 import 'package:senhas/Wave.dart';
 import 'package:senhas/Styles.dart';
 
+// Lista de grupos padrão
+const List<String> defaultGroups = ['Email', 'Rede Social', 'Jogos', 'Bancos', 'Sem Categoria'];
 
 class TelaGrupos extends StatefulWidget {
   const TelaGrupos({super.key});
@@ -18,7 +20,7 @@ class _TelaGruposState extends State<TelaGrupos> {
   @override
   Widget build(BuildContext context) {
     final groupProvider = context.watch<GroupProvider>();
-    final grupos = groupProvider.grupos;
+    final grupos = groupProvider.todosGrupos; // Recupera todos os grupos, incluindo privados
 
     return Scaffold(
       body: Stack(
@@ -55,8 +57,7 @@ class _TelaGruposState extends State<TelaGrupos> {
                   )
                       : GridView.builder(
                     padding: const EdgeInsets.all(8.0),
-                    gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       childAspectRatio: 2.0,
                       crossAxisCount: 2,
                       crossAxisSpacing: 10,
@@ -82,13 +83,11 @@ class _TelaGruposState extends State<TelaGrupos> {
                                     'Tem certeza de que deseja excluir o grupo "${grupo['nome']}"?'),
                                 actions: [
                                   TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
+                                    onPressed: () => Navigator.pop(context, false),
                                     child: const Text('Cancelar'),
                                   ),
                                   TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
+                                    onPressed: () => Navigator.pop(context, true),
                                     child: const Text('Excluir'),
                                   ),
                                 ],
@@ -107,7 +106,27 @@ class _TelaGruposState extends State<TelaGrupos> {
                             );
                           }
                         },
-                        child: GroupBoxCard(groupName: grupo['nome']),
+                        child: Stack(
+                          children: [
+                            GroupBoxCard(groupName: grupo['nome']),
+                            // Adiciona o cadeado apenas se não for grupo padrão
+                            if (!defaultGroups.contains(grupo['nome']))
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: IconButton(
+                                  icon: Icon(
+                                    grupo['group_privacy'] == 1 ? Icons.lock : Icons.lock_open,
+                                    color: grupo['group_privacy'] == 1 ? Colors.red : Colors.green,
+                                  ),
+                                  onPressed: () async {
+                                    // Alterna a privacidade do grupo
+                                    await groupProvider.toggleGroupPrivacy(grupo['nome']);
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -126,30 +145,55 @@ class _TelaGruposState extends State<TelaGrupos> {
 
   void _mostrarDialogoAdicionarGrupo(BuildContext context, GroupProvider groupProvider) {
     final controlador = TextEditingController();
+    bool isPrivate = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Adicionar Grupo'),
-        content: TextField(
-          controller: controlador,
-          decoration: const InputDecoration(
-            hintText: 'Nome do grupo',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await groupProvider.addGroup(controlador.text);
-              Navigator.pop(context);
-            },
-            child: const Text('Adicionar'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Adicionar Grupo'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controlador,
+                  decoration: const InputDecoration(
+                    hintText: 'Nome do grupo',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Text('Privado'),
+                    Switch(
+                      value: isPrivate,
+                      onChanged: (value) {
+                        setState(() {
+                          isPrivate = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await groupProvider.addGroup(controlador.text, isPrivate);
+                  Navigator.pop(context);
+                },
+                child: const Text('Adicionar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -2,10 +2,8 @@ import 'package:senhas/DATA/ServiceModel.dart';
 import 'package:senhas/DATA/database.dart';
 import 'package:sqflite/sqflite.dart';
 
-
-
 class CadastroDao {
-  static const String tableSql ='CREATE TABLE $_tablename('
+  static const String tableSql = 'CREATE TABLE $_tablename('
       '$_id INTEGER PRIMARY KEY AUTOINCREMENT, '
       '$_service TEXT, '
       '$_password TEXT, '
@@ -29,14 +27,13 @@ class CadastroDao {
   static const String _groupName = 'nome';
   static const String _groupPrivacy = 'group_privacy';
 
-
-// METODO INSERIR NOVO SERVIÇO
+  // INSERIR NOVO SERVIÇO
   Future<int> insertService(ServiceModel service) async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.insert(_tablename, service.toMap());
   }
 
-// METODO ATUALIZAR SERVIÇO EXISTENTE
+  // ATUALIZAR SERVIÇO EXISTENTE
   Future<int> updateService(ServiceModel service) async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.update(
@@ -47,7 +44,7 @@ class CadastroDao {
     );
   }
 
-//METODO PARA OBTER TODOS OS SERVIÇOS CADASTRADOS
+  // OBTER TODOS OS SERVIÇOS CADASTRADOS
   Future<List<ServiceModel>> findAllServices() async {
     final Database bancoDeDados = await getDatabase();
     final List<Map<String, dynamic>> result =
@@ -55,21 +52,7 @@ class CadastroDao {
     return result.map((map) => ServiceModel.fromMap(map)).toList();
   }
 
-//METODO PARA BUSCAR SERVICO POR ID
-// Future<ServiceModel?> findById(int id) async {
-//   final Database bancoDeDados = await getDatabase();
-//   final List<Map<String, dynamic>> maps = await bancoDeDados.query(
-//   _tablename,
-//   where: '$_id = ?',
-//   whereArgs: [id],
-//   );
-//   if (maps.isNotEmpty) {
-//     return ServiceModel.fromMap(maps.first);
-//   }
-//   return null;
-// }
-
-//METODO PARA DELETAR SERVIÇO ESPECIFICO
+  // DELETAR SERVIÇO ESPECÍFICO
   Future<int> deleteService(int id) async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.delete(
@@ -79,35 +62,34 @@ class CadastroDao {
     );
   }
 
-// INSERIR NOVO GRUPO
-
+  // INSERIR NOVO GRUPO
   Future<int> insertGroup(String groupName, bool isPrivate) async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.insert(
       _groupTableName,
-      {_groupName: groupName,
+      {
+        _groupName: groupName,
         _groupPrivacy: isPrivate ? 1 : 0,
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
     );
   }
 
-// BUSCAR TODOS GRUPOS
-
+  // BUSCAR TODOS OS GRUPOS
   Future<List<Map<String, dynamic>>> findAllGroups() async {
     final Database bancoDeDados = await getDatabase();
-    final List<Map<String, dynamic>> result = await bancoDeDados.query(_groupTableName);
-    return result;
+    return await bancoDeDados.query(_groupTableName);
   }
 
-
+  // DELETAR GRUPO
   Future<void> deleteGroup(String groupName) async {
     final Database bancoDeDados = await getDatabase();
     const semCategoria = 'Sem Categoria';
 
     try {
       // Garante que "Sem Categoria" existe antes de mover serviços
-      final List<Map<String, dynamic>> categoriaExistente = await bancoDeDados.query(
+      final List<Map<String, dynamic>> categoriaExistente =
+      await bancoDeDados.query(
         _groupTableName,
         where: '$_groupName = ?',
         whereArgs: [semCategoria],
@@ -139,7 +121,7 @@ class CadastroDao {
     }
   }
 
-
+  // ATUALIZA O GRUPO DE UM SERVIÇO
   Future<int> updateServiceGroup(String oldGroup, String newGroup) async {
     final Database bancoDeDados = await getDatabase();
     return bancoDeDados.update(
@@ -150,6 +132,8 @@ class CadastroDao {
     );
   }
 
+  // ATUALIZAR A PRIVACIDADE DE UM GRUPO
+  // Atualizar a privacidade de um grupo
   Future<int> updateGroupPrivacy(String groupName, bool isPrivate) async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.update(
@@ -160,6 +144,8 @@ class CadastroDao {
     );
   }
 
+
+  // BUSCAR GRUPOS PÚBLICOS
   Future<List<Map<String, dynamic>>> findPublicGroups() async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.query(
@@ -169,6 +155,7 @@ class CadastroDao {
     );
   }
 
+  // BUSCAR GRUPOS PRIVADOS
   Future<List<Map<String, dynamic>>> findPrivateGroups() async {
     final Database bancoDeDados = await getDatabase();
     return await bancoDeDados.query(
@@ -177,73 +164,4 @@ class CadastroDao {
       whereArgs: [1], // Privados têm privacidade = 1
     );
   }
-
-
-// ATUALIZAR O GRUPO POR ID
-
-// Future<int> updateGroup(int groupId, String newName) async {
-//   final Database bancoDeDados = await getDatabase();
-//   return await bancoDeDados.update(
-//       _groupTableName,
-//       {_groupName: newName},
-//     where: '$_groupId = ?',
-//     whereArgs: [groupId],
-//   );
-// }
-//
-//   Future<Map<String, List<ServiceModel>>> findServiceGroup() async {
-//     final List<ServiceModel> allServices = await findAll();
-//
-//     final Map<String, List<ServiceModel>> groupServices = {};
-//
-//     for (final service in allServices) {
-//       final groupKey = service.grupo ?? 'Sem grupo'; // Define "Sem grupo" como padrão
-//       if (!groupServices.containsKey(groupKey)) {
-//         groupServices[groupKey] = [];
-//       }
-//       groupServices[groupKey]!.add(service); // Adiciona o serviço ao grupo
-//     }
-//
-//     return groupServices; // Retorna o mapa
-//   }
-//
-//   Future<int> deleteServicesByGroup(String groupName) async {
-//     final Database bancoDeDados = await getDatabase();
-//     return await bancoDeDados.delete(
-//       _tablename,
-//       where: '$_group = ?',
-//       whereArgs: [groupName],
-//     );
-//   }
-//
-//   Future<bool> groupExists(String groupName) async {
-//     final Database bancoDeDados = await getDatabase();
-//     final List<Map<String, dynamic>> maps = await bancoDeDados.query(
-//       _groupTableName,
-//       where: '$_groupName = ?',
-//       whereArgs: [groupName],
-//     );
-//     return maps.isNotEmpty; // Retorna true se o grupo existir
-//   }
-//
-//   Future<int> deleteGroupByName(String groupName) async {
-//     final Database bancoDeDados = await getDatabase();
-//     return await bancoDeDados.delete(
-//       _groupTableName,
-//       where: '$_groupName = ?',
-//       whereArgs: [groupName],
-//     );
-//   }
-//
-//   Future<int> updateServiceGroup(String oldGroup, String newGroup) async {
-//   final Database bancoDeDados = await getDatabase();
-//   return await bancoDeDados.update(
-//     _tablename,
-//     {_group: newGroup},
-//     where: '$_group = ?',
-//     whereArgs: [oldGroup],
-//   );
-//   }
-
-
 }

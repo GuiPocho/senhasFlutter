@@ -16,6 +16,13 @@ class GroupProvider with ChangeNotifier {
     _loadGroups();
   }
 
+  // Getter para todos os grupos (usado na tela de criação/gerenciamento de grupos)
+  List<Map<String, dynamic>> get todosGrupos => _grupos;
+
+  // Getter para grupos públicos (usado na tela inicial)
+  List<Map<String, dynamic>> get gruposPublicos =>
+      _grupos.where((grupo) => grupo['group_privacy'] == 0).toList();
+
   // Carrega os grupos do banco de dados
   Future<void> _loadGroups() async {
     try {
@@ -32,43 +39,64 @@ class GroupProvider with ChangeNotifier {
   }
 
   // Adicionar um grupo
-  Future<void> addGroup(String groupName) async {
+  // Atualizar o método addGroup
+  Future<void> addGroup(String groupName, bool isPrivate) async {
     if (groupName.trim().isNotEmpty) {
       try {
-        await _cadastroDao.insertGroup(groupName, false);
-        await _loadGroups(); // Após inserir, recarrega e notifica
+        await _cadastroDao.insertGroup(groupName, isPrivate); // Adiciona com privacidade
+        await _loadGroups(); // Recarrega os grupos
       } catch (e) {
         debugPrint('Erro ao adicionar grupo: $e');
       }
     }
   }
 
+
+  // Alterar a privacidade do grupo
+  Future<void> toggleGroupPrivacy(String groupName) async {
+    try {
+      final grupo =
+      _grupos.firstWhere((grupo) => grupo['nome'] == groupName);
+      final novaPrivacidade = grupo['group_privacy'] == 0 ? 1 : 0;
+      await _cadastroDao.updateGroupPrivacy(groupName, novaPrivacidade == 1);
+      await _loadGroups(); // Após atualizar, recarrega e notifica
+    } catch (e) {
+      debugPrint('Erro ao alterar privacidade do grupo: $e');
+    }
+  }
+
   // Excluir um grupo:
-  // 1) Move serviços para "Sem Categoria" via CadastroProvider
-  // 2) Exclui o grupo
-  // 3) Recarrega e notifica
   Future<void> deleteGroup(String groupName) async {
     try {
-      // 1) Se tiver o CadastroProvider, realoca os serviços
-      if (cadastroProvider != null) {
-        await cadastroProvider!.moveServicesToDefaultGroup(groupName);
-      } else {
-        // Se por algum motivo não tiver, faz manual
-        const defaultGroup = 'Sem Categoria';
-        await _cadastroDao.updateServiceGroup(groupName, defaultGroup);
-      }
-
-      // 2) Exclui o grupo no banco
+      // Exclui o grupo no banco de dados
       await _cadastroDao.deleteGroup(groupName);
 
-      // 3) Recarrega a lista de grupos e notifica
-      await _loadGroups(); // <=== FUNDAMENTAL
-      // _loadGroups() chama notifyListeners() internamente
-
+      // Recarrega os grupos após a exclusão
+      await _loadGroups();
     } catch (e) {
-      print('Erro ao excluir grupo: $e');
+      debugPrint('Erro ao excluir grupo: $e');
     }
   }
 
 
+  // Garante a criação dos grupos padrão
+  Future<void> ensureDefaultGroups() async {
+    try {
+      const defaultGroups = [
+        'Email',
+        'Rede Social',
+        'Jogos',
+        'Bancos',
+        'Sem Categoria'
+      ];
+
+      for (final group in defaultGroups) {
+        await _cadastroDao.insertGroup(group, false); // Grupos padrão como públicos
+      }
+
+      await _loadGroups(); // Recarrega os grupos após a inserção
+    } catch (e) {
+      debugPrint('Erro ao garantir grupos padrão: $e');
+    }
+  }
 }
